@@ -1,4 +1,4 @@
-name: 🎯 YouTube Downloader
+name: 🎯 Downloader
 
 on:
   workflow_dispatch:
@@ -40,6 +40,27 @@ on:
         required: false
         type: number
         default: 50
+        file_url:
+
+    inputs:
+      file_url:
+        description: Direct file URL
+        required: true
+        type: string
+      upload_to:
+        description: Upload destination
+        required: true
+        type: choice
+        options:
+          - repository
+          - release
+      release_tag:
+        description: Release tag
+        required: false
+        default: latest
+        type: string
+
+    
 
 env:
   PYTHONUNBUFFERED: '1'
@@ -480,3 +501,26 @@ jobs:
           
           echo "   ❌ Push failed"
           exit 1
+
+      - name: Download
+        run: |
+          mkdir -p uploads
+          wget -O uploads/$(basename "${{ github.event.inputs.file_url }}") "${{ github.event.inputs.file_url }}"
+
+      - name: Push to repository
+        if: github.event.inputs.upload_to == 'repository'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "bot@github.com"
+          git add uploads
+          git commit -m "Upload file" || exit 0
+          git push
+
+      - name: Upload Release Asset
+        if: github.event.inputs.upload_to == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          files: uploads/*
+
+    
